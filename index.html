@@ -314,6 +314,7 @@ select option{background:var(--s2);color:var(--tx)}
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
+      <span id="roleBadge" style="font-size:11px;padding:4px 8px;border-radius:20px;border:1px solid var(--bd);color:var(--tx3);white-space:nowrap">👤 Operatör</span>
       <span id="cloudBadge" style="font-size:11px;padding:4px 8px;border-radius:20px;border:1px solid var(--bd);color:var(--tx3);white-space:nowrap">☁️ Bağlanıyor…</span>
       <button class="lkbtn" onclick="lockApp()">🔒 Kilitle</button>
     </div>
@@ -527,7 +528,9 @@ select option{background:var(--s2);color:var(--tx)}
         <span class="dk">Varsayılan Sicil No</span>
         <span class="dv"><input type="text" id="defOper" placeholder="Sicil No" style="width:130px;padding:6px 8px;font-size:12px" oninput="saveDefOper()"></span>
       </div>
+      <div class="dr"><span class="dk">Kontrol Dışı Bildirimi</span><span class="dv"><button class="fb" id="notifBtn" onclick="enableNotifications()">Aç →</button></span></div>
       <div class="dr"><span class="dk">PIN Değiştir</span><span class="dv"><button class="fb" onclick="openCPOv()">Değiştir →</button></span></div>
+      <div class="dr" id="amiriPinRow" style="display:none"><span class="dk">Amiri PIN Değiştir</span><span class="dv"><button class="fb" style="border-color:var(--or);color:var(--or)" onclick="openAPOv()">Değiştir →</button></span></div>
       <div class="dr"><span class="dk">Oturumu Kilitle</span><span class="dv"><button class="fb" style="border-color:var(--re);color:var(--re)" onclick="lockApp()">Kilitle →</button></span></div>
     </div>
   </div>
@@ -538,7 +541,20 @@ select option{background:var(--s2);color:var(--tx)}
 <!-- DETAIL MODAL -->
 <div class="ov" id="dtOv" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal"><div class="mh"></div><div class="mt" id="dtT">Grup Detayı</div><div id="dtB"></div>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="fb" style="flex:1" onclick="openEditRecord(dtCurId)">✏️ Düzenle</button>
+      <button class="fb amiri-only" style="flex:1;display:none;border-color:var(--re);color:var(--re)" onclick="confirmDeleteRecord(dtCurId)">🗑️ Sil</button>
+    </div>
     <button class="btn-g" onclick="document.getElementById('dtOv').classList.remove('open')">KAPAT</button>
+  </div>
+</div>
+
+<!-- EDIT RECORD MODAL -->
+<div class="ov" id="edOv" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal"><div class="mh"></div><div class="mt">KAYDI DÜZENLE</div>
+    <div id="edBody"></div>
+    <button class="btn-p" onclick="saveEditRecord()">KAYDET →</button>
+    <button class="btn-g" onclick="document.getElementById('edOv').classList.remove('open')">İptal</button>
   </div>
 </div>
 
@@ -606,6 +622,17 @@ select option{background:var(--s2);color:var(--tx)}
     <div class="fg full" style="margin-bottom:8px"><label>Yeni PIN Tekrar</label><input type="password" id="cnp2" maxlength="4" placeholder="••••" inputmode="numeric"></div>
     <button class="btn-p" onclick="doChangePIN()">DEĞİŞTİR →</button>
     <button class="btn-g" onclick="document.getElementById('cpOv').classList.remove('open')">İptal</button>
+  </div>
+</div>
+
+<!-- CHANGE AMIRI PIN MODAL -->
+<div class="ov" id="apOv" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal"><div class="mh"></div><div class="mt">AMİRİ PIN DEĞİŞTİR</div>
+    <div class="fg full" style="margin-bottom:8px"><label>Mevcut Amiri PIN</label><input type="password" id="aop" maxlength="4" placeholder="••••" inputmode="numeric"></div>
+    <div class="fg full" style="margin-bottom:8px"><label>Yeni Amiri PIN (4 Hane)</label><input type="password" id="anp1" maxlength="4" placeholder="••••" inputmode="numeric"></div>
+    <div class="fg full" style="margin-bottom:8px"><label>Yeni Amiri PIN Tekrar</label><input type="password" id="anp2" maxlength="4" placeholder="••••" inputmode="numeric"></div>
+    <button class="btn-p" onclick="doChangeAmiriPIN()">DEĞİŞTİR →</button>
+    <button class="btn-g" onclick="document.getElementById('apOv').classList.remove('open')">İptal</button>
   </div>
 </div>
 
@@ -698,10 +725,13 @@ function checkTrend(grps){
 // ══════════════════════════════════════════
 let DATA    =JSON.parse(localStorage.getItem('fik1_data')||'[]');
 let PIN     =localStorage.getItem('fik1_pin')||'1234';
+let PIN_AMIRI=localStorage.getItem('fik1_pin_amiri')||'9999';
+let ROLE    ='operator';
 let QR_URL  =localStorage.getItem('fik1_qrurl')||'';
 let DEF_OPER=localStorage.getItem('fik1_oper')||'';
 let cFilter='all',cChartO='36',cChartG='xbar',showAll=false,qrBuilt=false;
 let pinBuf='',pinFail=0,pinLock=false;
+let cloudFirstSnapshotDone=false;
 
 // ══════════════════════════════════════════
 // UTILS
@@ -729,9 +759,19 @@ function pdel(){if(pinLock)return;pinBuf=pinBuf.slice(0,-1);updDots();}
 function updDots(){for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.toggle('on',i<pinBuf.length);}
 function penter(){
   if(!pinBuf.length||pinLock)return;
-  if(pinBuf===PIN){
+  if(pinBuf===PIN_AMIRI){
     pinFail=0;pinBuf='';updDots();
+    ROLE='amiri';
     sessionStorage.setItem('fik1_ok','1');
+    sessionStorage.setItem('fik1_role','amiri');
+    document.getElementById('pinOv').classList.add('hidden');
+    document.getElementById('theApp').style.display='';
+    initApp();
+  } else if(pinBuf===PIN){
+    pinFail=0;pinBuf='';updDots();
+    ROLE='operator';
+    sessionStorage.setItem('fik1_ok','1');
+    sessionStorage.setItem('fik1_role','operator');
     document.getElementById('pinOv').classList.add('hidden');
     document.getElementById('theApp').style.display='';
     initApp();
@@ -742,7 +782,7 @@ function penter(){
     else err.textContent='Hatalı PIN — '+pinFail+'. deneme';
   }
 }
-function lockApp(){sessionStorage.removeItem('fik1_ok');document.getElementById('theApp').style.display='none';document.getElementById('pinOv').classList.remove('hidden');document.getElementById('pinErr').textContent='\u00a0';pinBuf='';updDots();}
+function lockApp(){sessionStorage.removeItem('fik1_ok');sessionStorage.removeItem('fik1_role');ROLE='operator';document.getElementById('theApp').style.display='none';document.getElementById('pinOv').classList.remove('hidden');document.getElementById('pinErr').textContent='\u00a0';pinBuf='';updDots();}
 function openCPOv(){['cop','cnp1','cnp2'].forEach(id=>document.getElementById(id).value='');document.getElementById('cpOv').classList.add('open');}
 function doChangePIN(){
   const old=document.getElementById('cop').value,n1=document.getElementById('cnp1').value,n2=document.getElementById('cnp2').value;
@@ -752,6 +792,17 @@ function doChangePIN(){
   PIN=n1;localStorage.setItem('fik1_pin',PIN);
   document.getElementById('cpOv').classList.remove('open');
   toast('PIN değiştirildi ✅');
+}
+function openAPOv(){['aop','anp1','anp2'].forEach(id=>document.getElementById(id).value='');document.getElementById('apOv').classList.add('open');}
+function doChangeAmiriPIN(){
+  const old=document.getElementById('aop').value,n1=document.getElementById('anp1').value,n2=document.getElementById('anp2').value;
+  if(old!==PIN_AMIRI){toast('Mevcut amiri PIN yanlış!','err');return;}
+  if(!/^\d{4}$/.test(n1)){toast('Yeni PIN 4 haneli rakam olmalı!','err');return;}
+  if(n1!==n2){toast('PIN\'ler eşleşmiyor!','err');return;}
+  if(n1===PIN){toast('Amiri PIN, operatör PIN\'iyle aynı olamaz!','err');return;}
+  PIN_AMIRI=n1;localStorage.setItem('fik1_pin_amiri',PIN_AMIRI);
+  document.getElementById('apOv').classList.remove('open');
+  toast('Amiri PIN değiştirildi ✅');
 }
 
 // ══════════════════════════════════════════
@@ -1232,7 +1283,9 @@ function renderList(){
 // ══════════════════════════════════════════
 // DETAIL
 // ══════════════════════════════════════════
+let dtCurId=null;
 function showDetail(id){
+  dtCurId=id;
   const g=DATA.find(x=>x.id===id);if(!g)return;
   const col=g.status==='ok'?'var(--gn)':g.status==='warn'?'var(--ye)':'var(--re)';
   const labels=OLCU_LABELS[g.olcu]||[];
@@ -1281,6 +1334,64 @@ function showDetail(id){
     ${g.note?`<div class="dr"><span class="dk">Not</span><span class="dv" style="font-size:11px">${g.note}</span></div>`:''}
     ${mudHtml}`;
   document.getElementById('dtOv').classList.add('open');
+}
+
+// ══════════════════════════════════════════
+// KAYIT DÜZENLE / SİL
+// ══════════════════════════════════════════
+function openEditRecord(id){
+  const g=DATA.find(x=>x.id===id);if(!g)return;
+  document.getElementById('dtOv').classList.remove('open');
+  const labels=OLCU_LABELS[g.olcu]||[];
+  const valsInputs=g.vals.map((v,i)=>`
+    <div class="fg full" style="margin-bottom:6px">
+      <label>${labels[i]||('Ölç '+(i+1))} (mm)</label>
+      <input type="number" step="0.001" inputmode="decimal" class="edv" value="${v}">
+    </div>`).join('');
+  document.getElementById('edBody').innerHTML=`
+    <div class="fg full" style="margin-bottom:6px"><label>Kalıp No</label><input type="text" id="edKalip" value="${(g.kalip||'').replace(/"/g,'&quot;')}"></div>
+    <div class="fg full" style="margin-bottom:6px"><label>Operatör Sicil No</label><input type="text" id="edOper" value="${(g.operator||'').replace(/"/g,'&quot;')}"></div>
+    <div class="fg full" style="margin-bottom:6px"><label>Vardiya Amiri</label><input type="text" id="edAmiri" value="${(g.amiri||'').replace(/"/g,'&quot;')}"></div>
+    ${valsInputs}
+    <div class="fg full" style="margin-bottom:6px"><label>Not</label><input type="text" id="edNote" value="${(g.note||'').replace(/"/g,'&quot;')}"></div>`;
+  document.getElementById('edOv').setAttribute('data-id',String(id));
+  document.getElementById('edOv').classList.add('open');
+}
+
+function saveEditRecord(){
+  const id=Number(document.getElementById('edOv').getAttribute('data-id'));
+  const g=DATA.find(x=>x.id===id);if(!g)return;
+  const vals=[...document.querySelectorAll('.edv')].map(i=>parseFloat(i.value));
+  if(vals.some(v=>isNaN(v))){toast('Tüm ölçüm alanları sayısal olmalı!','err');return;}
+  g.kalip=document.getElementById('edKalip').value.trim();
+  g.operator=document.getElementById('edOper').value.trim();
+  g.amiri=document.getElementById('edAmiri').value.trim();
+  g.note=document.getElementById('edNote').value.trim();
+  g.vals=vals;
+  g.xbar=spcMean(vals);
+  g.r=spcRange(vals);
+  g.status=getStatus(g.xbar,g.usl,g.lsl);
+  saveData();
+  if(window.FIK1_CLOUD){window.FIK1_CLOUD.pushRecord(g).catch(e=>console.error('Bulut yazma hatası:',e));}
+  document.getElementById('edOv').classList.remove('open');
+  toast('Kayıt güncellendi ✅');
+  renderDash();
+  try{renderList();}catch(e){}
+  try{renderChart();}catch(e){}
+}
+
+function confirmDeleteRecord(id){
+  if(ROLE!=='amiri'){toast('Silme yetkisi sadece amiri rolünde!','err');return;}
+  const g=DATA.find(x=>x.id===id);if(!g)return;
+  if(!confirm('Bu kaydı kalıcı olarak silmek istiyor musunuz?\n'+g.parca+' · '+fdt(g.ts)))return;
+  DATA=DATA.filter(x=>x.id!==id);
+  saveData();
+  if(window.FIK1_CLOUD){window.FIK1_CLOUD.deleteRecordById(id).catch(e=>console.error('Bulut silme hatası:',e));}
+  document.getElementById('dtOv').classList.remove('open');
+  toast('Kayıt silindi 🗑️');
+  renderDash();
+  try{renderList();}catch(e){}
+  try{renderChart();}catch(e){}
 }
 
 // ══════════════════════════════════════════
@@ -1422,8 +1533,60 @@ function initApp(){
   if(DEF_OPER)document.getElementById('eOper').value=DEF_OPER;
   olcuChange();   // ölçü inputlarını başlat (36mm, 4 ölçüm)
   loadDraft();
+  applyRole();
+  updateNotifBtn();
   renderDash();
   initCloudSync();
+}
+
+function applyRole(){
+  const isAmiri=ROLE==='amiri';
+  const rb=document.getElementById('roleBadge');
+  if(rb){
+    rb.textContent=isAmiri?'🛡️ Amiri':'👤 Operatör';
+    rb.style.color=isAmiri?'var(--or)':'var(--tx3)';
+    rb.style.borderColor=isAmiri?'var(--or)':'var(--bd)';
+  }
+  const apr=document.getElementById('amiriPinRow');
+  if(apr)apr.style.display=isAmiri?'':'none';
+  document.querySelectorAll('.amiri-only').forEach(el=>el.style.display=isAmiri?'':'none');
+}
+
+// ══════════════════════════════════════════
+// BİLDİRİMLER · KONTROL DIŞI UYARISI (uygulama açıkken)
+// ══════════════════════════════════════════
+function updateNotifBtn(){
+  const b=document.getElementById('notifBtn');
+  if(!b)return;
+  const on=('Notification' in window)&&Notification.permission==='granted'&&localStorage.getItem('fik1_notif_on')==='1';
+  b.textContent=on?'Açık ✅':'Aç →';
+  b.disabled=on;
+}
+function enableNotifications(){
+  if(!('Notification' in window)){toast('Bu tarayıcı bildirimleri desteklemiyor','err');return;}
+  if(Notification.permission==='denied'){toast('Bildirim izni tarayıcı ayarlarından engellenmiş','err');return;}
+  Notification.requestPermission().then(perm=>{
+    if(perm==='granted'){
+      localStorage.setItem('fik1_notif_on','1');
+      toast('Kontrol dışı bildirimleri açıldı 🔔');
+    } else {
+      toast('Bildirim izni verilmedi','err');
+    }
+    updateNotifBtn();
+  });
+}
+function notifyFail(g){
+  toast('❌ Kontrol dışı: '+g.parca+' · '+fd(g.xbar,3)+' mm','err');
+  if(!('Notification' in window)||Notification.permission!=='granted'||localStorage.getItem('fik1_notif_on')!=='1')return;
+  const title='❌ Kontrol Dışı Ölçüm — '+g.parca;
+  const body=g.olcu+'mm · '+g.model+' · Kalıp '+(g.kalip||'—')+' · X̄='+fd(g.xbar,3)+' mm · '+g.operator;
+  try{
+    if(navigator.serviceWorker&&navigator.serviceWorker.ready){
+      navigator.serviceWorker.ready.then(reg=>reg.showNotification(title,{body,icon:'./icons/icon-192.png',badge:'./icons/icon-72.png',tag:'fik1-fail-'+g.id}));
+    } else {
+      new Notification(title,{body,icon:'./icons/icon-192.png'});
+    }
+  }catch(e){console.error('Bildirim gösterme hatası:',e);}
 }
 
 // ══════════════════════════════════════════
@@ -1468,9 +1631,15 @@ function hookCloud(){
   // Gerçek zamanlı dinleme: başka cihazdan gelen değişiklikler de anında yansır
   try{
     CLOUD.watchRecords(list=>{
+      const prevIds=new Set(DATA.map(x=>x.id));
+      const isFirstSnapshot=!cloudFirstSnapshotDone;
       DATA=list;
       saveData();
       setCloudBadge('ok');
+      if(!isFirstSnapshot){
+        list.forEach(g=>{ if(g.status==='fail'&&!prevIds.has(g.id)) notifyFail(g); });
+      }
+      cloudFirstSnapshotDone=true;
       try{renderDash();}catch(e){}
       try{renderList();}catch(e){}
       try{renderChart();}catch(e){}
@@ -1502,6 +1671,7 @@ function initCloudSync(){
 
 (function(){
   if(sessionStorage.getItem('fik1_ok')==='1'){
+    ROLE=sessionStorage.getItem('fik1_role')||'operator';
     document.getElementById('pinOv').classList.add('hidden');
     document.getElementById('theApp').style.display='';
     initApp();

@@ -1,4 +1,4 @@
-const CACHE_NAME = "bsh-fik1-spc-v6.0.0";
+const CACHE_NAME = "bsh-fik1-spc-v7.0.0";
 
 const APP_FILES = [
     "./",
@@ -103,4 +103,16 @@ self.addEventListener("fetch", event => {
 
     );
 
+});
+
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+            for (const c of list) {
+                if ("focus" in c) return c.focus();
+            }
+            if (clients.openWindow) return clients.openWindow("./");
+        })
+    );
 });
