@@ -34,6 +34,66 @@ let unsubscribe = null;
 
 
 
+export async function pushRecord(record){
+
+    try{
+
+        const r = structuredClone(record);
+
+        r.ts = r.ts || Date.now();
+
+        await setDoc(
+
+            doc(db,COLLECTION,String(record.id)),
+
+            r,
+
+            { merge:true }
+
+        );
+
+        return true;
+
+    }
+
+    catch(e){
+
+        console.error(e);
+
+        return false;
+
+    }
+
+}
+
+
+
+export async function deleteRecordById(id){
+
+    try{
+
+        await deleteDoc(
+
+            doc(db,COLLECTION,String(id))
+
+        );
+
+        return true;
+
+    }
+
+    catch(e){
+
+        console.error(e);
+
+        return false;
+
+    }
+
+}
+
+
+
 export async function addRecord(record){
 
     try{
@@ -164,9 +224,11 @@ export async function loadRecords(){
 
         snap.forEach(d=>{
 
+            const rid = isNaN(Number(d.id)) ? d.id : Number(d.id);
+
             list.push({
 
-                id:d.id,
+                id:rid,
 
                 ...d.data()
 
@@ -216,9 +278,11 @@ export function watchRecords(callback){
 
             snap.forEach(d=>{
 
+                const rid = isNaN(Number(d.id)) ? d.id : Number(d.id);
+
                 list.push({
 
-                    id:d.id,
+                    id:rid,
 
                     ...d.data()
 
@@ -264,7 +328,7 @@ export async function syncLocalStorage(){
 
         for(const item of local){
 
-            await addRecord(item);
+            await pushRecord(item);
 
         }
 
@@ -316,7 +380,7 @@ export async function uploadCloudBackup(){
 
     for(const item of local){
 
-        await addRecord(item);
+        await pushRecord(item);
 
     }
 

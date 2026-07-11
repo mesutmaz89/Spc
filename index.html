@@ -14,6 +14,24 @@
 <link rel="icon" type="image/x-icon" href="./icons/favicon.ico">
 <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<script type="module">
+  try {
+    const mod = await import('./firebase.js');
+    window.FIK1_CLOUD = {
+      watchRecords: mod.watchRecords,
+      pushRecord: mod.pushRecord,
+      deleteRecordById: mod.deleteRecordById,
+      syncLocalStorage: mod.syncLocalStorage,
+      loadRecords: mod.loadRecords,
+      stopWatching: mod.stopWatching
+    };
+    window.dispatchEvent(new Event('fik1-cloud-ready'));
+  } catch(err) {
+    console.error('Firebase modül yükleme hatası:', err);
+    window.FIK1_CLOUD_ERROR = (err && err.message) ? err.message : String(err);
+    window.dispatchEvent(new Event('fik1-cloud-error'));
+  }
+</script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -295,7 +313,10 @@ select option{background:var(--s2);color:var(--tx)}
         <p id="hdDate">Menteşe Deliği Proses Kontrolü</p>
       </div>
     </div>
-    <button class="lkbtn" onclick="lockApp()">🔒 Kilitle</button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="cloudBadge" style="font-size:11px;padding:4px 8px;border-radius:20px;border:1px solid var(--bd);color:var(--tx3);white-space:nowrap">☁️ Bağlanıyor…</span>
+      <button class="lkbtn" onclick="lockApp()">🔒 Kilitle</button>
+    </div>
   </div>
 
   <div class="tabs">
@@ -923,6 +944,7 @@ function saveEntry(){
   };
 
   DATA.push(entry);saveData();
+  if(window.FIK1_CLOUD){window.FIK1_CLOUD.pushRecord(entry).catch(e=>console.error('Bulut yazma hatası:',e));}
   sessionStorage.removeItem('fik1_draft');
   document.getElementById('draftBadge').classList.remove('vis');
   document.querySelectorAll('.mv').forEach(i=>i.value='');
@@ -1298,6 +1320,7 @@ function saveMudahale(){
   });
 
   saveData();
+  if(window.FIK1_CLOUD){window.FIK1_CLOUD.pushRecord(g).catch(e=>console.error('Bulut yazma hatası:',e));}
   document.getElementById('mdOv').classList.remove('open');
   toast('Müdahale kaydedildi ✅');
   renderList();
@@ -1400,6 +1423,81 @@ function initApp(){
   olcuChange();   // ölçü inputlarını başlat (36mm, 4 ölçüm)
   loadDraft();
   renderDash();
+  initCloudSync();
+}
+
+// ══════════════════════════════════════════
+// FIREBASE · BULUT SENKRONİZASYONU
+// ══════════════════════════════════════════
+function setCloudBadge(state, msg){
+  const el = document.getElementById('cloudBadge');
+  if(!el) return;
+  const map = {
+    connecting: ['☁️ Bağlanıyor…','var(--tx3)','var(--bd)'],
+    ok:         ['☁️ Bulut bağlı','var(--gr)','var(--gr)'],
+    err:        ['⚠️ Bulut hatası','var(--re)','var(--re)'],
+    local:      ['📴 Yalnız yerel','var(--am)','var(--am)']
+  };
+  const [txt,color,border] = map[state]||map.connecting;
+  el.textContent = txt;
+  el.style.color = color;
+  el.style.borderColor = border;
+  if(msg){ el.title = msg; }
+}
+
+function hookCloud(){
+  const CLOUD = window.FIK1_CLOUD;
+  if(!CLOUD){ setCloudBadge('err','FIK1_CLOUD tanımsız'); return; }
+
+  // İlk bağlantıda: cihazdaki localStorage verisini buluta taşı (bir kez)
+  if(localStorage.getItem('fik1_cloud_migrated')!=='1'){
+    if(DATA.length){
+      CLOUD.syncLocalStorage().then(()=>{
+        localStorage.setItem('fik1_cloud_migrated','1');
+        toast('Yerel veriler buluta taşındı ☁️','ok');
+      }).catch(e=>{
+        console.error('Migrasyon hatası:',e);
+        toast('Migrasyon hatası: '+(e.message||e),'err');
+        setCloudBadge('err','Migrasyon hatası: '+(e.message||e));
+      });
+    } else {
+      localStorage.setItem('fik1_cloud_migrated','1');
+    }
+  }
+
+  // Gerçek zamanlı dinleme: başka cihazdan gelen değişiklikler de anında yansır
+  try{
+    CLOUD.watchRecords(list=>{
+      DATA=list;
+      saveData();
+      setCloudBadge('ok');
+      try{renderDash();}catch(e){}
+      try{renderList();}catch(e){}
+      try{renderChart();}catch(e){}
+    });
+  }catch(e){
+    console.error('watchRecords hatası:',e);
+    toast('Bulut dinleme hatası: '+(e.message||e),'err');
+    setCloudBadge('err',(e.message||String(e)));
+  }
+}
+
+function initCloudSync(){
+  setCloudBadge('connecting');
+  if(window.FIK1_CLOUD){
+    hookCloud();
+    return;
+  }
+  window.addEventListener('fik1-cloud-ready', hookCloud, {once:true});
+  window.addEventListener('fik1-cloud-error', ()=>{
+    setCloudBadge('err', window.FIK1_CLOUD_ERROR||'bilinmiyor');
+    toast('Bulut modülü yüklenemedi: '+(window.FIK1_CLOUD_ERROR||'bilinmiyor'),'err');
+  }, {once:true});
+  setTimeout(()=>{
+    if(!window.FIK1_CLOUD){
+      setCloudBadge('local','Modül 6sn içinde yüklenmedi — dosya yolu / network kontrol edilmeli');
+    }
+  }, 6000);
 }
 
 (function(){

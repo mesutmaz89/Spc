@@ -16,17 +16,17 @@ import { getStorage } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-s
 // Bu bilgiler Firebase Console'dan alınacak.
 const firebaseConfig = {
 
-    apiKey: "",
+    apiKey: "AIzaSyCEn8iLAlQr2B425NRQZMjPPsHF81PheRM",
 
-    authDomain: "",
+    authDomain: "bsh-fik1-spc.firebaseapp.com",
 
-    projectId: "",
+    projectId: "bsh-fik1-spc",
 
-    storageBucket: "",
+    storageBucket: "bsh-fik1-spc.firebasestorage.app",
 
-    messagingSenderId: "",
+    messagingSenderId: "492480158655",
 
-    appId: ""
+    appId: "1:492480158655:web:ef774f7bd57d1a58761f0a"
 
 };
 
