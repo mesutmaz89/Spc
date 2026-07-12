@@ -530,7 +530,7 @@ select option{background:var(--s2);color:var(--tx)}
       </div>
       <div class="dr"><span class="dk">Kontrol Dışı Bildirimi</span><span class="dv"><button class="fb" id="notifBtn" onclick="enableNotifications()">Aç →</button></span></div>
       <div class="dr"><span class="dk">PIN Değiştir</span><span class="dv"><button class="fb" onclick="openCPOv()">Değiştir →</button></span></div>
-      <div class="dr" id="amiriPinRow" style="display:none"><span class="dk">Amiri PIN Değiştir</span><span class="dv"><button class="fb" style="border-color:var(--or);color:var(--or)" onclick="openAPOv()">Değiştir →</button></span></div>
+      <div class="dr" id="amiriPinRow" style="display:none"><span class="dk">Amir PIN Değiştir</span><span class="dv"><button class="fb" style="border-color:var(--or);color:var(--or)" onclick="openAPOv()">Değiştir →</button></span></div>
       <div class="dr"><span class="dk">Oturumu Kilitle</span><span class="dv"><button class="fb" style="border-color:var(--re);color:var(--re)" onclick="lockApp()">Kilitle →</button></span></div>
     </div>
   </div>
@@ -627,10 +627,10 @@ select option{background:var(--s2);color:var(--tx)}
 
 <!-- CHANGE AMIRI PIN MODAL -->
 <div class="ov" id="apOv" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal"><div class="mh"></div><div class="mt">AMİRİ PIN DEĞİŞTİR</div>
-    <div class="fg full" style="margin-bottom:8px"><label>Mevcut Amiri PIN</label><input type="password" id="aop" maxlength="4" placeholder="••••" inputmode="numeric"></div>
-    <div class="fg full" style="margin-bottom:8px"><label>Yeni Amiri PIN (4 Hane)</label><input type="password" id="anp1" maxlength="4" placeholder="••••" inputmode="numeric"></div>
-    <div class="fg full" style="margin-bottom:8px"><label>Yeni Amiri PIN Tekrar</label><input type="password" id="anp2" maxlength="4" placeholder="••••" inputmode="numeric"></div>
+  <div class="modal"><div class="mh"></div><div class="mt">AMİR PIN DEĞİŞTİR</div>
+    <div class="fg full" style="margin-bottom:8px"><label>Mevcut Amir PIN</label><input type="password" id="aop" maxlength="4" placeholder="••••" inputmode="numeric"></div>
+    <div class="fg full" style="margin-bottom:8px"><label>Yeni Amir PIN (4 Hane)</label><input type="password" id="anp1" maxlength="4" placeholder="••••" inputmode="numeric"></div>
+    <div class="fg full" style="margin-bottom:8px"><label>Yeni Amir PIN Tekrar</label><input type="password" id="anp2" maxlength="4" placeholder="••••" inputmode="numeric"></div>
     <button class="btn-p" onclick="doChangeAmiriPIN()">DEĞİŞTİR →</button>
     <button class="btn-g" onclick="document.getElementById('apOv').classList.remove('open')">İptal</button>
   </div>
@@ -799,10 +799,10 @@ function doChangeAmiriPIN(){
   if(old!==PIN_AMIRI){toast('Mevcut amiri PIN yanlış!','err');return;}
   if(!/^\d{4}$/.test(n1)){toast('Yeni PIN 4 haneli rakam olmalı!','err');return;}
   if(n1!==n2){toast('PIN\'ler eşleşmiyor!','err');return;}
-  if(n1===PIN){toast('Amiri PIN, operatör PIN\'iyle aynı olamaz!','err');return;}
+  if(n1===PIN){toast('Amir PIN, operatör PIN\'iyle aynı olamaz!','err');return;}
   PIN_AMIRI=n1;localStorage.setItem('fik1_pin_amiri',PIN_AMIRI);
   document.getElementById('apOv').classList.remove('open');
-  toast('Amiri PIN değiştirildi ✅');
+  toast('Amir PIN değiştirildi ✅');
 }
 
 // ══════════════════════════════════════════
@@ -1381,7 +1381,7 @@ function saveEditRecord(){
 }
 
 function confirmDeleteRecord(id){
-  if(ROLE!=='amiri'){toast('Silme yetkisi sadece amiri rolünde!','err');return;}
+  if(ROLE!=='amiri'){toast('Silme yetkisi sadece amir rolünde!','err');return;}
   const g=DATA.find(x=>x.id===id);if(!g)return;
   if(!confirm('Bu kaydı kalıcı olarak silmek istiyor musunuz?\n'+g.parca+' · '+fdt(g.ts)))return;
   DATA=DATA.filter(x=>x.id!==id);
@@ -1543,7 +1543,7 @@ function applyRole(){
   const isAmiri=ROLE==='amiri';
   const rb=document.getElementById('roleBadge');
   if(rb){
-    rb.textContent=isAmiri?'🛡️ Amiri':'👤 Operatör';
+    rb.textContent=isAmiri?'🛡️ Amir':'👤 Operatör';
     rb.style.color=isAmiri?'var(--or)':'var(--tx3)';
     rb.style.borderColor=isAmiri?'var(--or)':'var(--bd)';
   }
