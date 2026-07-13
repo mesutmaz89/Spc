@@ -339,11 +339,17 @@ select option{background:var(--s2);color:var(--tx)}
     <div class="gauges">
       <div class="gcard">
         <div class="gl">Cpk — 36 mm Dış Menteşe</div>
+        <select class="gmodel" id="g36model" onchange="renderDash()" style="width:100%;margin-bottom:4px;font-size:9px;padding:3px;background:var(--s2);color:var(--tx);border:1px solid var(--bd);border-radius:6px;font-family:'DM Mono',monospace">
+          <option value="__all__">Tüm Modeller (havuz)</option>
+        </select>
         <canvas id="g36" width="140" height="84"></canvas>
         <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--mu);margin-top:3px" id="g36sub">—</div>
       </div>
       <div class="gcard">
         <div class="gl">Cpk — 9 mm İç Menteşe</div>
+        <select class="gmodel" id="g9model" onchange="renderDash()" style="width:100%;margin-bottom:4px;font-size:9px;padding:3px;background:var(--s2);color:var(--tx);border:1px solid var(--bd);border-radius:6px;font-family:'DM Mono',monospace">
+          <option value="__all__">Tüm Modeller (havuz)</option>
+        </select>
         <canvas id="g9" width="140" height="84"></canvas>
         <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--mu);margin-top:3px" id="g9sub">—</div>
       </div>
@@ -1089,14 +1095,25 @@ function renderDash(){
   document.getElementById('stFa').textContent=DATA.filter(g=>g.status==='fail').length;
   const cm=curMonth();
   ['36','9'].forEach(t=>{
-    const td=DATA.filter(g=>g.olcu===t&&g.month===cm);
+    const gaugeId=t==='36'?'g36':'g9';
+    const selEl=document.getElementById(gaugeId+'model');
+    const allForOlcu=DATA.filter(g=>g.olcu===t&&g.month===cm);
+    const models=[...new Set(allForOlcu.map(g=>g.model).filter(Boolean))];
+    if(selEl){
+      const prev=selEl.value||'__all__';
+      selEl.innerHTML='<option value="__all__">Tüm Modeller (havuz)</option>'+
+        models.map(m=>`<option value="${m}">${m}</option>`).join('');
+      selEl.value=[...selEl.options].some(o=>o.value===prev)?prev:'__all__';
+    }
+    const selModel=selEl?selEl.value:'__all__';
+    const td=selModel==='__all__'?allForOlcu:allForOlcu.filter(g=>g.model===selModel);
     const lim=spcLimits(td);
     const g0=td.find(g=>g.usl&&g.lsl);
     const nVal=td[0]?td[0].n:(t==='36'?4:6);
     const cpk=lim&&g0?calcCpk(lim.xd,lim.rb,g0.usl,g0.lsl,nVal):null;
-    drawGauge(t==='36'?'g36':'g9',cpk);
-    document.getElementById((t==='36'?'g36':'g9')+'sub').textContent=
-      lim?td.length+' grup · X̄='+fd(lim.xd,2):'Bu ay '+td.length+' grup';
+    drawGauge(gaugeId,cpk);
+    document.getElementById(gaugeId+'sub').textContent=
+      lim?td.length+' grup · X̄='+fd(lim.xd,2)+(selModel==='__all__'&&models.length>1?' · havuzlanmış ⚠':''):'Bu ay '+td.length+' grup';
     const nelson=lim?checkNelson(td,lim):null;
     const nb=document.getElementById('nelsonDash');
     if(nelson&&t==='36'){nb.textContent=nelson;nb.classList.add('vis');}
