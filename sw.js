@@ -1,4 +1,4 @@
-const CACHE_NAME = "bsh-fik1-spc-v8.0.0";
+const CACHE_NAME = "bsh-fik1-spc-v9.0.0";
 
 const APP_FILES = [
     "./",
